@@ -5,7 +5,7 @@ export const handleGetReviewsByUserId = async (req, res, next) => {
     const { userId } = req.params;
     const reviews = await getReviewsByUserId(userId);
   
-    res.status(200).json({ result: reviews });
+    res.status(200).success(reviews);
   } catch (error) {
     next(error);
   }
