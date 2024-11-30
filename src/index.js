@@ -3,6 +3,11 @@ import express from "express";
 import cors from "cors";
 import swaggerAutogen from "swagger-autogen";
 import swaggerUiExpress from "swagger-ui-express";
+import { PrismaSessionStore } from "@quixo3/prisma-session-store";
+import session from "express-session";
+import passport from "passport";
+import { googleStrategy } from "./auth.config.js";
+import { prisma } from "./db.config.js";
 import { handleUserSignUp } from "./controllers/user.controller.js";
 import { handleGetMissionByShopId } from "./controllers/mission.controller.js";
 import { handleGetOngoingMissions } from "./controllers/mission.controller.js";
@@ -10,6 +15,10 @@ import { handleGetReviewsByUserId } from "./controllers/user.controller.js";
 
 // dotenv 라이브러리는 -> .env 파일로부터 환경 변수 읽기 & process.env. 객체를 통해 접근 가능하도록 함
 dotenv.config();
+
+passport.use(googleStrategy);
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
 
 const app = express();
 const port = process.env.PORT;
@@ -45,6 +54,31 @@ app.get("/openapi.json", async (req, res, next) => {
   res.json(result ? result.data : null);
 });
 
+// 구글 로그인 (Passport 사용)
+app.get("/oauth2/login/google", passport.authenticate("google"));
+app.get(
+  "/oauth2/callback/google",
+  passport.authenticate("google", {
+    failureRedirect: "/oauth2/login/google",
+    failureMessage: true,
+  }),
+  (req, res) => res.redirect("/")
+);
+
+//* 네이버 로그인 라우터
+router.get('/naver', passport.authenticate('naver', { authType: 'reprompt' }));
+
+//? 위에서 네이버 서버 로그인이 되면, 네이버 redirect url 설정에 따라 이쪽 라우터로 오게 됨
+router.get(
+  '/naver/callback',
+   //? 그리고 passport 로그인 전략에 의해 naverStrategy로 가서 카카오계정 정보와 DB를 비교해서 회원가입시키거나 로그인 처리하게 한다.
+  passport.authenticate('naver', { failureRedirect: '/' }),
+  (req, res) => {
+      res.redirect('/');
+  },
+);
+
+
 // 공통 응답 사용 헬퍼 함수 등록
 app.use((req, res, next) => {
   res.success = (success) => {
@@ -73,6 +107,25 @@ app.use(cors()); // cors 방식 허용
 app.use(express.static('public')); // 정적 파일 접근
 app.use(express.json()); // request의 본문을 json으로 해석하도록 함 (JSON 형태의 요청 body를 파싱하기 위해)
 app.use(express.urlencoded({ extended: false })); // 단순 객체 문자열 형태로 본문 데이터 해석
+
+app.use(
+  session({
+    cookie: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // ms
+    },
+    resave: false,
+    saveUninitialized: false,
+    secret: process.env.EXPRESS_SESSION_SECRET,
+    store: new PrismaSessionStore(prisma, {
+      checkPeriod: 2 * 60 * 1000, // ms
+      dbRecordIdIsSessionId: true,
+      dbRecordIdFunction: undefined,
+    }),
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -103,7 +156,6 @@ app.use((err, req, res, next) => {
     data: err.data || null,
   });
 });
-
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });

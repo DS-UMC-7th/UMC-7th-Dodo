@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@quixo3/prisma-session-store": "^3.1.13",
+    "babel": "^5.8.38",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "http-status-codes": "^2.3.0",
     "mysql2": "^3.11.4",
+    "node-fetch": "^2.7.0",
+    "passport-naver-v2": "^2.0.8",
     "prisma": "^5.22.0",
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.1"
